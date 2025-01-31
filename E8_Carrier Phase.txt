@@ -1,18 +1,13 @@
+Fs = 10000;
+Ts = 1 / Fs;
+symbolRate = 1000;
+L = 4;
+rollOff = 0.5;
+rcDelay = 10;
+numPaths = 4;
+pathDelays = [0 1 3 6] * Ts;
+pathGains = (1/sqrt(2)) * (randn(numPaths, 1) + 1j * randn(numPaths, 1));
 
-% Step 1: Define Basic Parameters
-Fs = 10000;               % Sampling frequency (Hz)
-Ts = 1 / Fs;              % Sampling period (s)
-symbolRate = 1000;        % Symbol rate (symbols per second)
-L = 4;                    % Oversampling factor (samples per symbol)
-rollOff = 0.5;            % Roll-off factor for pulse shaping filter
-rcDelay = 10;             % Filter delay
-
-% Channel properties (Multipath)
-numPaths = 4;             % Number of paths in the channel
-pathDelays = [0 1 3 6] * Ts;   % Path delays (in seconds)
-pathGains = (1/sqrt(2)) * (randn(numPaths, 1) + 1j * randn(numPaths, 1)); % Rayleigh fading coefficients (complex)
-
-% Display the parameters
 disp('Signal Properties:');
 disp(['Sampling Frequency (Fs): ', num2str(Fs), ' Hz']);
 disp(['Symbol Rate: ', num2str(symbolRate), ' symbols/sec']);
@@ -22,35 +17,27 @@ disp(' ');
 disp('Channel Properties:');
 disp(['Number of Paths: ', num2str(numPaths)]);
 disp('Path Delays (in samples):');
-disp(round(pathDelays * Fs));  % Convert delay to samples
+disp(round(pathDelays * Fs));
 disp('Path Gains (complex):');
 disp(pathGains);
 
-% Step 2: Generate Test Signal (BPSK)
-numBits = 1000;           % Number of bits
-data = randi([0 1], numBits, 1);  % Generate random binary sequence
-txSymbols = 2*data - 1;  % BPSK modulation: 0 -> -1, 1 -> +1
+numBits = 1000;
+data = randi([0 1], numBits, 1);
+txSymbols = 2*data - 1;
+htx = rcosdesign(rollOff, 6, L);
+txUpSequence = upsample(txSymbols, L);
+txSignal = filter(htx, 1, txUpSequence);
 
-% Pulse shaping (Raised Cosine Filter)
-htx = rcosdesign(rollOff, 6, L);   % Raised cosine filter with rolloff factor
-txUpSequence = upsample(txSymbols, L);  % Upsample the modulated signal
-txSignal = filter(htx, 1, txUpSequence);  % Apply the raised cosine filter for pulse shaping
-
-% Step 3: Create Frequency-Selective Rayleigh Fading Channel
 rayleighChannel = comm.RayleighChannel( ...
-    'SampleRate', Fs, ...                % Sampling rate
-    'PathDelays', pathDelays, ...        % Path delays in seconds
-    'AveragePathGains', [10*log10(abs(pathGains).^2)]', ... % Average path gains in dB
-    'MaximumDopplerShift', 0, ...        % Maximum Doppler shift
-    'NormalizePathGains', true, ...      % Normalize path gains
-    'PathGainsOutputPort', true);       % Fading profile (Nakagami fading model)
+    'SampleRate', Fs, ...
+    'PathDelays', pathDelays, ...
+    'AveragePathGains', [10*log10(abs(pathGains).^2)]', ...
+    'MaximumDopplerShift', 0, ...
+    'NormalizePathGains', true, ...
+    'PathGainsOutputPort', true);
 
-% Step 4: Pass the Signal Through the Frequency-Selective Fading Channel
-rxSignalFading = rayleighChannel(txSignal);  % Faded signal received at the receiver
+rxSignalFading = rayleighChannel(txSignal);
 
-% Step 5: Visualize the Results - Compare Transmitted and Received Signals
-
-% Plot the transmitted signal (before fading)
 figure;
 subplot(3,1,1);
 plot(real(txSignal(1:100)), 'g');
@@ -59,7 +46,6 @@ xlabel('Sample Index');
 ylabel('Amplitude');
 grid on;
 
-% Plot the received signal (after fading)
 subplot(3,1,2);
 plot(real(rxSignalFading(1:100)), 'b');
 title('Received Signal (Real Part) after Frequency-Selective Fading');
@@ -67,11 +53,9 @@ xlabel('Sample Index');
 ylabel('Amplitude');
 grid on;
 
-% Optionally, add AWGN noise to simulate real-world noisy conditions
-SNR = 10;  % Signal-to-noise ratio in dB
-rxSignalNoisy = awgn(rxSignalFading, SNR, 'measured');  % Add AWGN noise
+SNR = 10;
+rxSignalNoisy = awgn(rxSignalFading, SNR, 'measured');
 
-% Plot the received noisy signal
 subplot(3,1,3);
 plot(real(rxSignalNoisy(1:100)), 'r');
 title('Received Noisy Signal (Real Part)');
@@ -79,8 +63,6 @@ xlabel('Sample Index');
 ylabel('Amplitude');
 grid on;
 
-% Optionally, visualize the effect on the constellation diagram
-% Plot the constellation of the transmitted signal (ideal)
 figure;
 subplot(2,1,1);
 scatter(real(txSignal(1:100)), imag(txSignal(1:100)), 'g');
@@ -89,7 +71,6 @@ xlabel('In-phase');
 ylabel('Quadrature');
 grid on;
 
-% Plot the constellation of the received signal after fading
 subplot(2,1,2);
 scatter(real(rxSignalFading(1:100)), imag(rxSignalFading(1:100)), 'b');
 title('Received Signal Constellation after Frequency-Selective Fading');
@@ -97,7 +78,6 @@ xlabel('In-phase');
 ylabel('Quadrature');
 grid on;
 
-% If noise was added, plot the constellation of the noisy received signal
 figure;
 scatter(real(rxSignalNoisy(1:100)), imag(rxSignalNoisy(1:100)), 'r');
 title('Received Noisy Signal Constellation');
