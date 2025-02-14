@@ -1,0 +1,43 @@
+
+clear; clc;
+N = 1000; SNR_dB = 10; M = 4; B = 0.01; true_phase = pi/3;
+tx_symbols = exp(1j * (2 * pi * (0:M-1) / M));
+tx_signal = tx_symbols(randi([1 M], N, 1));
+noise = (1/sqrt(2*10^(SNR_dB/10))) * (randn(N,1) + 1j * randn(N,1));
+rx_signal = tx_signal .* exp(1j * true_phase) + noise;
+estimated_phase_ml = angle(sum(conj(tx_signal) .* rx_signal));
+
+phase_error = zeros(N,1); est_phase = zeros(N,1); phi = 0;
+for n = 1:N
+    phase_error(n) = angle(rx_signal(n) * exp(-1j * phi)); 
+    phi = phi + B * phase_error(n);
+    est_phase(n) = phi;
+end
+corrected_rx_signal = rx_signal .* exp(-1j * est_phase);
+
+figure;
+subplot(2,1,1); scatter(real(rx_signal), imag(rx_signal), 'filled'); title('Received');
+subplot(2,1,2); scatter(real(corrected_rx_signal), imag(corrected_rx_signal), 'filled'); title('Corrected');
+
+SNR_dB_range = 0:2:20; var_phase_error = zeros(length(SNR_dB_range),1);
+for idx = 1:length(SNR_dB_range)
+    noise = sqrt(1/(2*10^(SNR_dB_range(idx)/10))) * (randn(N,1) + 1j * randn(N,1));
+    rx_signal = exp(1j * true_phase) + noise;
+    var_phase_error(idx) = var(angle(rx_signal) - true_phase);
+end
+figure; plot(SNR_dB_range, var_phase_error); title('Phase Error Variance vs SNR');
+
+phi_dd = 0; phi_ndd = 0; est_phase_dd = zeros(N,1); est_phase_ndd = zeros(N,1);
+for n = 1:N
+    noise = (1/sqrt(2*10^(SNR_dB))) * (randn + 1j * randn);
+    rx_signal = tx_signal(n) * exp(1j * true_phase) + noise;
+    detected_symbol = exp(1j * round(angle(rx_signal) * M / (2 * pi)) * 2 * pi / M);
+    phi_dd = phi_dd + B * angle(detected_symbol * exp(-1j * phi_dd));
+    est_phase_dd(n) = phi_dd;
+    phi_ndd = phi_ndd + B * angle(rx_signal * exp(-1j * phi_ndd));
+    est_phase_ndd(n) = phi_ndd;
+end
+
+figure;
+subplot(2,1,1); plot(est_phase_dd); title('Decision-Directed Phase Estimate');
+subplot(2,1,2); plot(est_phase_ndd); title('Non-Decision-Directed Phase Estimate');
