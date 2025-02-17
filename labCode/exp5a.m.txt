@@ -1,0 +1,38 @@
+clear;
+
+Fs = 1000; fc = 100; fp = 4; bit_t = 0.1;
+m = [0 0 1 1 1 1 0 0];
+message = repmat((2*m-1), fp, 1);
+message = reshape(message, 1, []);
+
+pn_code = 2*randi([0, 1], 1, length(m)*fp) - 1;
+DSSS = message .* pn_code;
+
+t = 0:1/Fs:(bit_t-1/Fs);
+s0 = -cos(2*pi*fc*t); s1 = cos(2*pi*fc*t);
+BPSK = arrayfun(@(x) (x == 1) * s1 + (x == -1) * s0, DSSS, 'UniformOutput', false);
+BPSK = [BPSK{:}];
+
+rx = arrayfun(@(x) (pn_code(x) == 1)*BPSK(((x-1)*length(t)+1):x*length(t)) - (pn_code(x) == 0)*BPSK(((x-1)*length(t)+1):x*length(t)), 1:length(pn_code), 'UniformOutput', false);
+rx = [rx{:}];
+
+result = arrayfun(@(i) sum(rx(((i-1)*length(t)*fp)+1:i*length(t)*fp)) > 0, 1:length(m));
+
+pn_codeWrong = 2*randi([0, 1], 1, length(m)*fp) - 1;
+rx2 = arrayfun(@(x) (pn_codeWrong(x) == 1)*BPSK(((x-1)*length(t)+1):x*length(t)) - (pn_codeWrong(x) == 0)*BPSK(((x-1)*length(t)+1):x*length(t)), 1:length(pn_codeWrong), 'UniformOutput', false);
+rx2 = [rx2{:}];
+
+resultWrong = arrayfun(@(i) sum(rx2(((i-1)*length(t)*fp)+1:i*length(t)*fp)) > 0, 1:length(m));
+
+time_vector = linspace(0, length(m)*bit_t, length(message));
+
+figure;
+subplot(3,1,1), stairs(time_vector, message), title('Message');
+subplot(3,1,2), stairs(time_vector, pn_code), title('PN Code');
+subplot(3,1,3), stairs(time_vector, DSSS), title('DSSS Signal');
+
+f = linspace(-Fs/2, Fs/2, 1024);
+figure;
+subplot(3,1,1), plot(f, abs(fftshift(fft(message, 1024)))), title('Message Spectrum');
+subplot(3,1,2), plot(f, abs(fftshift(fft(pn_code, 1024)))), title('PN Code Spectrum');
+subplot(3,1,3), plot(f, abs(fftshift(fft(DSSS, 1024)))), title('DSSS Spectrum');
